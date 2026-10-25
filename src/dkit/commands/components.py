@@ -122,10 +122,5 @@ COMMAND = Command(
     description=DESCRIPTION,
     add_arguments=add_arguments,
     run=run,
-    epilog=(
-        "examples:\n"
-        "  dkit components\n"
-        "  dkit components 1\n"
-        "  dkit components 'Action Row'\n"
-    ),
+    epilog=("examples:\n  dkit components\n  dkit components 1\n  dkit components 'Action Row'\n"),
 )

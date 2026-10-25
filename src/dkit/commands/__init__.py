@@ -10,8 +10,8 @@ from __future__ import annotations
 from dkit.commands import (
     channels,
     color,
-    components,
     completion,
+    components,
     errors,
     flags,
     intents,
