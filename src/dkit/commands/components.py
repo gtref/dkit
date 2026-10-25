@@ -44,11 +44,35 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         nargs="?",
         help="a component type number (e.g. 2) or name (e.g. Button)",
     )
+    parser.add_argument(
+        "--search",
+        metavar="TEXT",
+        help="List components whose type, name, description contains TEXT(case-sensitive)",
+    )
 
 
 def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
     """Execute ``dkit components``."""
+
+    if args.value is not None and args.search is not None:
+        raise UsageError("a component cannot be combined with --search", hint="look up one component or search for matching components, not both",)
     entries = component_types()
+
+    if args.search is not None:
+        query = args.search.strip()
+        if not query:
+            raise UsageError(
+                            "no search text given", hint="example: dkit components --search Interactive"
+                        )
+        matches = _search(query, entries)
+        _render_all(out, matches)
+        return {
+            "mode": "search",
+            "query": query,
+            "count": len(matches),
+            "types": matches,
+            "source": data.provenance("component_types")
+        }
 
     if args.value is None:
         _render_all(out, entries)
@@ -90,6 +114,13 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
     hint = suggestion_hint(norm, [normalise_name(n) for n in known_names]) or HINT_ALL
     raise UsageError(f"unknown component type: {raw!r}", hint=hint)
 
+def _search(query: str, entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Return entries containing ``query`` with case-sensitive matching."""
+    return [
+        entry
+        for entry in entries
+        if any(query in entry[field] for field in ("type", "name", "description"))
+    ]
 
 def _render_one(out: Printer, entry: dict[str, str]) -> None:
     """Render a single component type."""
@@ -97,10 +128,10 @@ def _render_one(out: Printer, entry: dict[str, str]) -> None:
     out.field("Type", out.style(entry["type"], "green", "bold"))
     out.field("Name", entry["name"])
     out.field("Description", entry["description"])
-    if entry.get("style"):
-        out.field("Style", entry["style"])
-    if entry.get("usage"):
-        out.field("Usage", entry["usage"])
+   
+    out.field("Style", entry["style"])
+    
+    out.field("Usage", entry["usage"])
 
 
 def _render_all(out: Printer, entries: list[dict[str, str]]) -> None:
@@ -122,5 +153,5 @@ COMMAND = Command(
     description=DESCRIPTION,
     add_arguments=add_arguments,
     run=run,
-    epilog=("examples:\n  dkit components\n  dkit components 1\n  dkit components 'Action Row'\n"),
+    epilog=("examples:\n  dkit components\n  dkit components 1\n  dkit components 'Action Row'\n dkit components --search 'Interactive'"),
 )

@@ -118,6 +118,7 @@ positional arguments:
     locales    look up Discord locale codes
     color      convert a color between decimal, hex and RGB
     errors     look up discord error codes
+    components look up discord components
 
 options:
   -h, --help   show this help message and exit

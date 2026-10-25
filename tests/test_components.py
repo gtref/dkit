@@ -136,10 +136,32 @@ def test_cli_render_one_shows_style_and_usage(cli) -> None:
     assert "Message, Modal" in result.stdout
 
 
-def test_cli_render_one_omits_empty_style(cli) -> None:
-    """Component types that have no style/usage should not show empty fields."""
-    # All current entries have style and usage, so just verify a known one renders them.
+def test_cli_render_one_shows_style_and_usage(cli) -> None:
     result = cli("components", "1")
+
     assert result.exit_code == 0
     assert "Layout" in result.stdout
     assert "Message" in result.stdout
+
+def test_cli_search_finds_matches(cli) -> None:
+    result = cli("components", "--search", "interactive")
+
+    assert result.exit_code == 0
+    assert "Action Row" in result.stdout
+
+def test_cli_search_empty_string(cli) -> None:
+    result = cli("components", "--search", "")
+
+    assert result.exit_code == 2
+    assert "no search text given" in result.stderr
+
+def test_cli_rejects_component_and_search_together(cli) -> None:
+    result = cli(
+        "components",
+        "Button",
+        "--search",
+        "Interactive",
+    )
+
+    assert result.exit_code == 2
+    assert "cannot be combined with --search" in result.stderr
