@@ -159,9 +159,9 @@ COMMAND = Command(
     add_arguments=add_arguments,
     run=run,
     epilog=(
-        "examples:\n  dkit components\n",
-        "dkit components 1\n",
-        "dkit components 'Action Row'\n",
-        "dkit components --search 'Interactive'",
+        "examples:\n  dkit components\n"
+        "dkit components 1\n"
+        "dkit components 'Action Row'\n"
+        "dkit components --search 'Interactive'"
     ),
 )
