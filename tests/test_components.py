@@ -129,19 +129,20 @@ def test_cli_strips_whitespace_on_input(cli) -> None:
     assert "2" in res_name.stdout
 
 
-def test_cli_render_one_shows_style_and_usage(cli) -> None:
+def test_cli_render_one_shows_style_and_usage_and_name(cli) -> None:
     result = cli("components", "3")
     assert result.exit_code == 0
     assert "Interactive" in result.stdout
     assert "Message, Modal" in result.stdout
 
 
-def test_cli_render_one_shows_style_and_usage(cli) -> None:
+def test_cli_render_one_shows_style_and_usage_name(cli) -> None:
     result = cli("components", "1")
 
     assert result.exit_code == 0
     assert "Layout" in result.stdout
     assert "Message" in result.stdout
+
 
 def test_cli_search_finds_matches(cli) -> None:
     result = cli("components", "--search", "interactive")
@@ -149,11 +150,13 @@ def test_cli_search_finds_matches(cli) -> None:
     assert result.exit_code == 0
     assert "Action Row" in result.stdout
 
+
 def test_cli_search_empty_string(cli) -> None:
     result = cli("components", "--search", "")
 
     assert result.exit_code == 2
     assert "no search text given" in result.stderr
+
 
 def test_cli_rejects_component_and_search_together(cli) -> None:
     result = cli(
