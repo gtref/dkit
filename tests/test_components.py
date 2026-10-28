@@ -22,16 +22,8 @@ def test_component_types_have_required_keys() -> None:
         assert "usage" in entry
 
 
-def test_cli_components_list_all(cli) -> None:
-    result = cli("components")
-    assert result.exit_code == 0
-    assert "Action Row" in result.stdout
-    assert "Button" in result.stdout
-    assert "String Select" in result.stdout
-
-
 def test_cli_components_json_all(cli) -> None:
-    payload = cli("--json", "components").json
+    payload = cli("--json", "components", "--list").json
     assert payload["mode"] == "all"
     assert payload["count"] == 20
     assert len(payload["component_types"]) == 20
@@ -93,7 +85,7 @@ def test_cli_unknown_integer_exits_with_code_2(cli) -> None:
     result = cli("components", "99")
     assert result.exit_code == 2
     assert "unknown component type number: '99'" in result.stderr
-    assert "run 'dkit components' to list every known component type" in result.stderr
+    assert "run 'dkit components --list' to list every known component type" in result.stderr
 
 
 def test_cli_unknown_name_with_suggestion(cli) -> None:
@@ -168,3 +160,41 @@ def test_cli_rejects_component_and_search_together(cli) -> None:
 
     assert result.exit_code == 2
     assert "cannot be combined with --search" in result.stderr
+
+
+def test_search_matches_type(cli) -> None:
+    payload = cli(
+        "--json",
+        "components",
+        "--search",
+        "18",
+    ).json
+
+    assert payload["mode"] == "search"
+    assert payload["count"] == 1
+    assert payload["types"][0]["type"] == "18"
+
+
+def test_search_matches_name(cli) -> None:
+    payload = cli(
+        "--json",
+        "components",
+        "--search",
+        "Button",
+    ).json
+
+    assert payload["mode"] == "search"
+    assert any(component["name"] == "Button" for component in payload["types"])
+
+
+def test_search_is_case_sensitive(cli) -> None:
+    payload = cli(
+        "--json",
+        "components",
+        "--search",
+        "button",
+    ).json
+
+    assert payload["mode"] == "search"
+    assert payload["count"] == 0
+    assert payload["types"] == []

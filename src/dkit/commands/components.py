@@ -13,11 +13,11 @@ from dkit.core.registry import Command
 from dkit.core.suggest import suggestion_hint
 
 DESCRIPTION = """\
-Look up Discord component types by type number or name, or list every known
-component type.
+Look up Discord component types by type number or name, search for matching
+component types, or list every known component type.
 """
 
-HINT_ALL = "run 'dkit components' to list every known component type"
+HINT_ALL = "run 'dkit components --list' to list every known component type"
 
 
 def component_types() -> list[dict[str, str]]:
@@ -30,7 +30,10 @@ def component_types() -> list[dict[str, str]]:
             "name": component_type["name"],
             "description": component_type["description"],
             "style": component_type.get("style", ""),
-            "usage": component_type.get("Usage", component_type.get("usage", "")),
+            "usage": component_type.get(
+                "Usage",
+                component_type.get("usage", ""),
+            ),
         }
         for component_type in components["types"]
     ]
@@ -44,31 +47,66 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         nargs="?",
         help="a component type number (e.g. 2) or name (e.g. Button)",
     )
+
     parser.add_argument(
         "--search",
         metavar="TEXT",
-        help="List components whose type, name, description contains TEXT(case-sensitive)",
+        help="list components whose type, name, or description contains TEXT",
+    )
+
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="list all component types",
     )
 
 
 def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
     """Execute ``dkit components``."""
 
+    entries = component_types()
+
+    if args.list and args.search is not None:
+        raise UsageError(
+            "--list cannot be combined with --search",
+            hint="use either --list or --search",
+        )
+
+    if args.list and args.value is not None:
+        raise UsageError(
+            "--list cannot be combined with TYPE",
+            hint="use either --list or TYPE",
+        )
+
     if args.value is not None and args.search is not None:
         raise UsageError(
             "a component cannot be combined with --search",
             hint=("look up one component or search for matching components, not both"),
         )
-    entries = component_types()
+
+    if args.list:
+        _render_all(out, entries)
+
+        return {
+            "mode": "all",
+            "count": len(entries),
+            "component_types": [dict(entry) for entry in entries],
+            "source": data.provenance("component_types"),
+        }
 
     if args.search is not None:
         query = args.search.strip()
+
         if not query:
             raise UsageError(
-                "no search text given\n", hint=("example: dkit components --search Interactive")
+                "no search text given",
+                hint="example: dkit components --search Interactive",
             )
+
         matches = _search(query, entries)
+
         _render_all(out, matches)
+
         return {
             "mode": "search",
             "query": query,
@@ -78,35 +116,38 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
         }
 
     if args.value is None:
-        _render_all(out, entries)
-        return {
-            "mode": "all",
-            "count": len(entries),
-            "component_types": [dict(entry) for entry in entries],
-            "source": data.provenance("component_types"),
-        }
+        raise UsageError(
+            "no component type specified",
+            hint="run 'dkit components --list' to see all component types",
+        )
 
     raw = args.value.strip()
+
     if looks_like_int(raw):
         int_val = parse_int(raw, what="component type")
         str_val = str(int_val)
+
         for entry in entries:
             if entry["type"] == str_val:
                 _render_one(out, entry)
+
                 return {
                     "mode": "lookup",
                     **entry,
                     "source": data.provenance("component_types"),
                 }
+
         raise UsageError(
             f"unknown component type number: {raw!r}",
             hint=HINT_ALL,
         )
 
     norm = normalise_name(raw)
+
     for entry in entries:
         if normalise_name(entry["name"]) == norm:
             _render_one(out, entry)
+
             return {
                 "mode": "lookup",
                 **entry,
@@ -114,11 +155,25 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
             }
 
     known_names = [entry["name"] for entry in entries]
-    hint = suggestion_hint(norm, [normalise_name(n) for n in known_names]) or HINT_ALL
-    raise UsageError(f"unknown component type: {raw!r}", hint=hint)
+
+    hint = (
+        suggestion_hint(
+            norm,
+            [normalise_name(name) for name in known_names],
+        )
+        or HINT_ALL
+    )
+
+    raise UsageError(
+        f"unknown component type: {raw!r}",
+        hint=hint,
+    )
 
 
-def _search(query: str, entries: list[dict[str, str]]) -> list[dict[str, str]]:
+def _search(
+    query: str,
+    entries: list[dict[str, str]],
+) -> list[dict[str, str]]:
     """Return entries containing ``query`` with case-sensitive matching."""
     return [
         entry
@@ -130,25 +185,42 @@ def _search(query: str, entries: list[dict[str, str]]) -> list[dict[str, str]]:
 def _render_one(out: Printer, entry: dict[str, str]) -> None:
     """Render a single component type."""
     out.heading("Component type")
-    out.field("Type", out.style(entry["type"], "green", "bold"))
+
+    out.field(
+        "Type",
+        out.style(entry["type"], "green", "bold"),
+    )
+
     out.field("Name", entry["name"])
     out.field("Description", entry["description"])
-
     out.field("Style", entry["style"])
-
     out.field("Usage", entry["usage"])
 
 
-def _render_all(out: Printer, entries: list[dict[str, str]]) -> None:
+def _render_all(
+    out: Printer,
+    entries: list[dict[str, str]],
+) -> None:
     """Render every component type in tabular form."""
     out.heading(f"Component types ({len(entries)})")
-    type_width = max((len(entry["type"]) for entry in entries), default=0)
-    name_width = max((len(entry["name"]) for entry in entries), default=0)
+
+    type_width = max(
+        (len(entry["type"]) for entry in entries),
+        default=0,
+    )
+
+    name_width = max(
+        (len(entry["name"]) for entry in entries),
+        default=0,
+    )
+
     for entry in entries:
         type_str = entry["type"].rjust(type_width)
         name = entry["name"]
         padding = " " * (name_width - len(name))
+
         styled_name = out.style(name, "green")
+
         out.line(f"  {type_str}  {styled_name}{padding}  {entry['description']}")
 
 
@@ -159,9 +231,10 @@ COMMAND = Command(
     add_arguments=add_arguments,
     run=run,
     epilog=(
-        "examples:\n  dkit components\n"
-        "dkit components 1\n"
-        "dkit components 'Action Row'\n"
-        "dkit components --search 'Interactive'"
+        "examples:\n"
+        "  dkit components --list\n"
+        "  dkit components 1\n"
+        "  dkit components Button\n"
+        "  dkit components --search Interactive"
     ),
 )
