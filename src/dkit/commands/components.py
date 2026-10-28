@@ -65,19 +65,6 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
     """Execute ``dkit components``."""
 
     entries = component_types()
-
-    if args.list and args.search is not None:
-        raise UsageError(
-            "--list cannot be combined with --search",
-            hint="use either --list or --search",
-        )
-
-    if args.list and args.value is not None:
-        raise UsageError(
-            "--list cannot be combined with TYPE",
-            hint="use either --list or TYPE",
-        )
-
     if args.value is not None and args.search is not None:
         raise UsageError(
             "a component cannot be combined with --search",
@@ -114,12 +101,6 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
             "types": matches,
             "source": data.provenance("component_types"),
         }
-
-    if args.value is None:
-        raise UsageError(
-            "no component type specified",
-            hint="run 'dkit components --list' to see all component types",
-        )
 
     raw = args.value.strip()
 
