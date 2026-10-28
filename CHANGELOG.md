@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `dkit components` - Command for listing discord components(#66)
+- `dkit components` - look up Discord component types by number or name, with `--search` and `--list`, and `--json` support (#64)
 - `dkit errors` - Command for finding specific error codes of discord bots. (#62)
 - `dkit perms --list --channel-type T|V|S` - filter listed permissions by text,
   voice or stage channel applicability. (#59)

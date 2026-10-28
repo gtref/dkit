@@ -30,10 +30,7 @@ def component_types() -> list[dict[str, str]]:
             "name": component_type["name"],
             "description": component_type["description"],
             "style": component_type.get("style", ""),
-            "usage": component_type.get(
-                "Usage",
-                component_type.get("usage", ""),
-            ),
+            "usage": component_type.get("usage", ""),
         }
         for component_type in components["types"]
     ]
@@ -51,7 +48,10 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--search",
         metavar="TEXT",
-        help="list components whose type, name, or description contains TEXT",
+        help=(
+            "list components whose type, name, description, style, or usage contains TEXT "
+            "(case-insensitive)"
+        ),
     )
 
     parser.add_argument(
@@ -65,13 +65,18 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
     """Execute ``dkit components``."""
 
     entries = component_types()
-    if args.value is not None and args.search is not None:
-        raise UsageError(
-            "a component cannot be combined with --search",
-            hint=("look up one component or search for matching components, not both"),
-        )
-
     if args.list:
+        if args.value is not None:
+            raise UsageError(
+                "a component type cannot be combined with --list",
+                hint="run 'dkit components --list' or look up one component, not both",
+            )
+        if args.search is not None:
+            raise UsageError(
+                "--list cannot be combined with --search",
+                hint="run 'dkit components --list' or search by text, not both",
+            )
+
         _render_all(out, entries)
 
         return {
@@ -80,6 +85,12 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
             "component_types": [dict(entry) for entry in entries],
             "source": data.provenance("component_types"),
         }
+
+    if args.value is not None and args.search is not None:
+        raise UsageError(
+            "a component type cannot be combined with --search",
+            hint="look up one component or search for matching components, not both",
+        )
 
     if args.search is not None:
         query = args.search.strip()
@@ -101,6 +112,12 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
             "types": matches,
             "source": data.provenance("component_types"),
         }
+
+    if args.value is None:
+        raise UsageError(
+            "no component type given",
+            hint=HINT_ALL,
+        )
 
     raw = args.value.strip()
 
@@ -137,13 +154,7 @@ def run(args: argparse.Namespace, out: Printer) -> dict[str, Any]:
 
     known_names = [entry["name"] for entry in entries]
 
-    hint = (
-        suggestion_hint(
-            norm,
-            [normalise_name(name) for name in known_names],
-        )
-        or HINT_ALL
-    )
+    hint = suggestion_hint(raw, known_names) or HINT_ALL
 
     raise UsageError(
         f"unknown component type: {raw!r}",
@@ -155,11 +166,15 @@ def _search(
     query: str,
     entries: list[dict[str, str]],
 ) -> list[dict[str, str]]:
-    """Return entries containing ``query`` with case-sensitive matching."""
+    """Return entries containing ``query`` with case-insensitive matching."""
+    needle = query.casefold()
     return [
         entry
         for entry in entries
-        if any(query in entry[field] for field in ("type", "name", "description"))
+        if any(
+            needle in entry[field].casefold()
+            for field in ("type", "name", "description", "style", "usage")
+        )
     ]
 
 
